@@ -32,11 +32,11 @@ const double EPS      = 10e-8;
 const int MAX         = 1000;
 const int BUFFER_SIZE = 1024 * 1024;
 const int INF         = 1 << 30;
-const string COLOR_OFF = "\e[0m";
-const string GREEN = "\e[0;32m";
-const string RED = "\e[0;31m";
+const string COLOR_OFF  = "\e[0m";
+const string GREEN      = "\e[0;32m";
+const string RED        = "\e[0;31m";
 
-const string BOLD_BLUE = "\e[1;34m";
+const string BOLD_BLUE  = "\e[1;34m";
 const string BOLD_WHITE = "\e[1;37m";
 
 bool is_int(const char *str)
@@ -67,10 +67,12 @@ bool do_test(int id, string exec_name)
                 + out + " " + tmp_out + " &> /dev/null";
     bool ret = true;
     int code = system(diff.c_str());
+
     gettimeofday(&end, NULL);
     long seconds = end.tv_sec - start.tv_sec;
     long useconds = end.tv_usec - start.tv_usec;
     double t = (seconds * 1000 + useconds * 0.001) * 0.001;
+
     if (code == 0) {
         cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
              << " Test #" + to_s(id) + ": PASS" << COLOR_OFF << endl;
