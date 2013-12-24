@@ -1,0 +1,5 @@
+*.swp
+.in*
+.out*
+.test_info
+tp
