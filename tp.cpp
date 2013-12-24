@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
@@ -9,17 +10,10 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+
+#include <sys/time.h>
+#include <unistd.h>
 using namespace std;
-
-clock_t _start_clock = clock();
-
-inline void _time()
-{
-#ifndef ONLINE_JUDGE
-    fprintf(stderr, "Time: %.2fs\n",
-            double(clock() - _start_clock) / CLOCKS_PER_SEC);
-#endif
-}
 
 inline int log(const char* format, ...)
 {
@@ -38,6 +32,12 @@ const double EPS      = 10e-8;
 const int MAX         = 1000;
 const int BUFFER_SIZE = 1024 * 1024;
 const int INF         = 1 << 30;
+const string COLOR_OFF = "\e[0m";
+const string GREEN = "\e[0;32m";
+const string RED = "\e[0;31m";
+
+const string BOLD_BLUE = "\e[1;34m";
+const string BOLD_WHITE = "\e[1;37m";
 
 bool is_int(const char *str)
 {
@@ -52,9 +52,10 @@ string to_s(int n)
     return string(buff);
 }
 
-void do_test(int id, string exec_name)
+bool do_test(int id, string exec_name)
 {
-    cout << "Test #" + to_s(id) + ": ";
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     exec_name = "./" + exec_name;
     string tmp_out = "/tmp/out_" + to_s(id);
     string in = ".in_" + to_s(id) + ".txt";
@@ -62,15 +63,35 @@ void do_test(int id, string exec_name)
     system(command.c_str());
 
     string out = ".out_" + to_s(id) + ".txt";
-    string diff = "diff --ignore-all-space " + out + " " + tmp_out;
+    string diff = "diff --ignore-all-space "
+                + out + " " + tmp_out + " &> /dev/null";
+    bool ret = true;
     int code = system(diff.c_str());
-    if (code == 0)
-        cout << "PASS" << endl;
-    else
-        cout << "FAIL" << endl;
+    gettimeofday(&end, NULL);
+    long seconds = end.tv_sec - start.tv_sec;
+    long useconds = end.tv_usec - start.tv_usec;
+    double t = (seconds * 1000 + useconds * 0.001) * 0.001;
+    if (code == 0) {
+        cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
+             << " Test #" + to_s(id) + ": PASS" << COLOR_OFF << endl;
+    } else {
+        cout << RED << fixed << setprecision(3) << "[" << t << "] "
+             << " Test #" + to_s(id) + ": FAIL" << COLOR_OFF << endl;
+        cout << "== EXPECTED OUTPUT == " << endl;
+        string cat = "cat " + out;
+        system(cat.c_str());
+
+        cout << endl << "== ACTUAL OUTPUT == " << endl;
+        cat = "cat " + tmp_out;
+        system(cat.c_str());
+        cout << endl;
+        ret = false;
+    }
 
     string rm = "rm " + tmp_out;
     system(rm.c_str());
+
+    return ret;
 }
 
 void show_test(int id)
@@ -115,12 +136,13 @@ int main(int argc, char **argv)
 {
     if (argc < 2) {
         cerr << "Usage: " <<  argv[0] 
-             << " <add> | <del test_id> |"
-             << " <run [test_id]> | <show [test_id]> |"
+             << " <add> |"
+             << " <run [test_id]> |"
+             << " <show [test_id]> |"
+             << " <edit [test_id]> |"
              << " <clean>" << endl;
         exit(1);
     }
-
 
     if (strcmp(argv[1], "add") == 0) {
         int test_id = 0;
@@ -155,36 +177,42 @@ int main(int argc, char **argv)
             cerr << "Couldn't open output file!" << endl;
             exit(1);
         }
-        printf("Type (NL + Ctrl + D) or (2 * Ctrl + D) to end input.\n");
-        printf("\t== INPUT ==\n");
-        string input;
-        char ch;
-        while ((ch = getchar()) != EOF)
-            input += ch;
 
-        string output;
-        printf("\t== EXPECTED OUTPUT ==\n");
-        while ((ch = getchar()) != EOF)
-            output += ch;
-
-        input_file << input;
         input_file.close();
-        output_file << output;
         output_file.close();
-    } else if (strcmp(argv[1], "del") == 0) {
+        string vim = "vim -O " + in_name + " " + out_name;
+        int code = system(vim.c_str());
+        exit(code);
+    } else if (strcmp(argv[1], "edit") == 0) {
         if (argc < 3) {
             cerr << "You must specify a test ID." << endl;
             exit(1);
         }
-
         if (!is_int(argv[2])) {
-            cerr << "ID isn't valid." << endl;
+            cerr << "Invalid test ID!" << endl;
             exit(1);
         }
-        //int id = atoi(argv[2]);
 
-        // del test with ID = id
+        int test_id;
+        ifstream info_file(".test_info");
+        if (info_file.fail()) {
+            cerr << "Couldn't open info file." << endl;
+            exit(1);
+        }
+        info_file >> test_id;
+        info_file.close();
 
+        int id = atoi(argv[2]);
+        if (id < 1 || id > test_id) {
+            cerr << "Invalid test ID!" << endl;
+            exit(1);
+        }
+
+        string in_name = ".in_" + to_s(id) + ".txt";
+        string out_name = ".out_" + to_s(id) + ".txt";
+        string vim = "vim -O " + in_name + " " + out_name;
+        int code = system(vim.c_str());
+        exit(code);
     } else if (strcmp(argv[1], "run") == 0) {
         int test_id;
         string exec_name;
@@ -192,23 +220,33 @@ int main(int argc, char **argv)
         if (info_file.fail()) {
             cerr << "Couldn't open info file." << endl;
             exit(1);
-        } else {
-            info_file >> test_id;
-            info_file >> exec_name;
-            info_file.close();
-        }
+        } 
+        info_file >> test_id;
+        info_file >> exec_name;
+        info_file.close();
+
+        int success = 0;
         if (argc == 3 && is_int(argv[2])) {
-            int id = atoi(argv[2]);
+            int id = atoi(argv[3]);
             if (id < 1 || id > test_id) {
                 cerr << "Invalid test ID!" << endl;
                 exit(1);
             }
 
-            do_test(id, exec_name);
+            if (do_test(id, exec_name))
+                success++;
         } else {
             for (int id = 1; id <= test_id; id++)
-                do_test(id, exec_name);
+                if (do_test(id, exec_name))
+                    success++;
         }
+
+        cout << "----------------------" << endl;
+        cout << "Total tests: " << test_id << endl
+             << GREEN << "PASS: " << success;
+        if (success < test_id)
+            cout << RED << endl << "FAIL: " << test_id - success;
+        cout << COLOR_OFF << endl;
     } else if (strcmp(argv[1], "show") == 0) {
         int test_id;
         string exec_name;
@@ -247,15 +285,14 @@ int main(int argc, char **argv)
             string command = "rm " + in_name;
             system(command.c_str());
 
-            command = "rm " + out_name;
+            command = "rm " + out_name + " &> /dev/null";
             system(command.c_str());
         }
 
         info_file.close();
-        system("rm .test_info");
+        system("rm .test_info &> /dev/null");
     }
 
-    //_time();
     return EXIT_SUCCESS;
 }
 
