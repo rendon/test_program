@@ -227,6 +227,7 @@ int main(int argc, char **argv)
         info_file >> exec_name;
         info_file.close();
 
+        int total_tests = test_id;
         int success = 0;
         if (argc == 3 && is_int(argv[2])) {
             int id = atoi(argv[2]);
@@ -235,6 +236,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
+            total_tests = 1;
             if (do_test(id, exec_name))
                 success++;
         } else {
@@ -244,10 +246,12 @@ int main(int argc, char **argv)
         }
 
         cout << "----------------------" << endl;
-        cout << "Total tests: " << test_id << endl
+        cout << "Total tests: " << total_tests << endl
              << GREEN << "PASS: " << success;
-        if (success < test_id)
-            cout << RED << endl << "FAIL: " << test_id - success;
+
+        if (success < total_tests)
+            cout << RED << endl << "FAIL: " << total_tests - success;
+
         cout << COLOR_OFF << endl;
     } else if (strcmp(argv[1], "show") == 0) {
         int test_id;
