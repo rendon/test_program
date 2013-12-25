@@ -75,10 +75,10 @@ bool do_test(int id, string exec_name)
 
     if (code == 0) {
         cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
-             << " Test #" + to_s(id) + ": PASS" << COLOR_OFF << endl;
+             << "Test #" + to_s(id) + ": PASS" << COLOR_OFF << endl;
     } else {
         cout << RED << fixed << setprecision(3) << "[" << t << "] "
-             << " Test #" + to_s(id) + ": FAIL" << COLOR_OFF << endl;
+             << "Test #" + to_s(id) + ": FAIL" << COLOR_OFF << endl;
         cout << "== EXPECTED OUTPUT == " << endl;
         string cat = "cat " + out;
         system(cat.c_str());
@@ -229,7 +229,8 @@ int main(int argc, char **argv)
 
         int success = 0;
         if (argc == 3 && is_int(argv[2])) {
-            int id = atoi(argv[3]);
+            printf("HERE\n");
+            int id = atoi(argv[2]);
             if (id < 1 || id > test_id) {
                 cerr << "Invalid test ID!" << endl;
                 exit(1);
