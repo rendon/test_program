@@ -229,7 +229,6 @@ int main(int argc, char **argv)
 
         int success = 0;
         if (argc == 3 && is_int(argv[2])) {
-            printf("HERE\n");
             int id = atoi(argv[2]);
             if (id < 1 || id > test_id) {
                 cerr << "Invalid test ID!" << endl;
