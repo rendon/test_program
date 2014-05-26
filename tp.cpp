@@ -64,7 +64,7 @@ bool do_test(int id, string exec_name)
 
     string out = ".out_" + to_s(id) + ".txt";
     string diff = "diff --ignore-all-space "
-                + out + " " + tmp_out + " &> /dev/null";
+                + out + " " + tmp_out + " 2>&1 > /dev/null";
     bool ret = true;
     int code = system(diff.c_str());
 
