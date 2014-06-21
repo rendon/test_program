@@ -276,27 +276,33 @@ int main(int argc, char **argv)
                 show_test(id);
         }
     } else if(strcmp(argv[1], "clean") == 0) {
-        int test_id;
-        string exec_name;
-        ifstream info_file(".test_info");
-        if (info_file.fail()) {
-            cerr << "Couldn't open info file." << endl;
-            exit(1);
-        }
-        
-        info_file >> test_id;
-        for (int id = 1; id <= test_id; id++) {
-            string in_name = ".in_" + to_s(id) + ".txt";
-            string out_name = ".out_" + to_s(id) + ".txt";
-            string command = "rm " + in_name;
-            system(command.c_str());
+        // clean recursively
+        if (argc > 2 && strcmp(argv[2], "-r") == 0) {
+            system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
+                    -exec rm -v {} \\;");
+        } else {
+            int test_id;
+            string exec_name;
+            ifstream info_file(".test_info");
+            if (info_file.fail()) {
+                cerr << "Couldn't open info file." << endl;
+                exit(1);
+            }
 
-            command = "rm " + out_name + " &> /dev/null";
-            system(command.c_str());
-        }
+            info_file >> test_id;
+            for (int id = 1; id <= test_id; id++) {
+                string in_name = ".in_" + to_s(id) + ".txt";
+                string out_name = ".out_" + to_s(id) + ".txt";
+                string command = "rm " + in_name;
+                system(command.c_str());
 
-        info_file.close();
-        system("rm .test_info &> /dev/null");
+                command = "rm " + out_name + " &> /dev/null";
+                system(command.c_str());
+            }
+
+            info_file.close();
+            system("rm .test_info &> /dev/null");
+        }
     }
 
     return EXIT_SUCCESS;
