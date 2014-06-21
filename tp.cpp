@@ -10,7 +10,9 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <map>
 
+#include <wordexp.h>
 #include <sys/time.h>
 #include <unistd.h>
 using namespace std;
@@ -38,6 +40,31 @@ const string RED        = "\e[0;31m";
 
 const string BOLD_BLUE  = "\e[1;34m";
 const string BOLD_WHITE = "\e[1;37m";
+
+const string RC_FILE    = "~/.tprc";
+const string SUPPORTED_LANGUAGES[] = {"cpp", "java", "python", "ruby"};
+
+const char BASIC_CPP_TEMPLATE[] = "\
+#include <bits/stdc++.h>\n\
+using namespace std;\n\
+int main(int argc, char **argv)\n\
+{\n\
+    return EXIT_SUCCESS;\n\
+}\n";
+
+const char BASIC_JAVA_TEMPLATE[] = "\
+public class Main {\n\
+  public static void main(String[] args) {\n\
+  }\n\
+}\n";
+
+const char BASIC_PYTHON_TEMPLATE[] = "\
+#!/usr/bin/python\n\
+print \"Let's do it!\"\n";
+
+const char BASIC_RUBY_TEMPLATE[] = "\
+#!/usr/bin/ruby\n\
+puts \"Let's do it!\"\n";
 
 bool is_int(const char *str)
 {
@@ -133,11 +160,50 @@ void show_test(int id)
     output.close();
 }
 
+int read_rc_file(map<string, string> &config)
+{
+    wordexp_t exp_result;
+    wordexp(RC_FILE.c_str(), &exp_result, 0);
+    ifstream file(exp_result.we_wordv[0]);
+    if (file.fail()) { return 1; }
+
+    string line;
+    while (getline(file, line)) {
+        string key = "";
+        string value = "";
+        int i = 0, end = line.length();
+
+        // Trim
+        while (end > 0 && line[end-1] == ' ') { end--; }
+        while (i < end && line[i] == ' ')     { i++;   }
+
+        while (i < end && line[i] != ' ' && line[i] != '=') {
+            key += line[i++];
+        }
+
+        while (i < end && line[i] == ' ') { i++; }
+        // Invalid key-value entry
+        if (i >= end || line[i] != '=')   { continue; }
+
+        i++; // skip '=' 
+        while (i < end && line[i] == ' ') { i++; }
+
+        while (i < end) {
+            value += line[i++];
+        }
+
+        config[key] = value;
+    }
+
+    file.close();
+    return 0;
+}
 
 int main(int argc, char **argv)
 {
     if (argc < 2) {
         cerr << "Usage: " <<  argv[0] 
+             << " <init> <code_template> <contest_name> [CF Round ID]|"
              << " <add> |"
              << " <run [test_id]> |"
              << " <show [test_id]> |"
@@ -146,7 +212,106 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (strcmp(argv[1], "add") == 0) {
+    if (strcmp(argv[1], "init") == 0) {
+        if (argc < 3) {
+            cerr << "Please specify a code template, e.g. cpp" << endl;
+            exit(1);
+        }
+        if (argc < 4) {
+            cerr << "Please specify a contest name, e.g. codeforces" << endl;
+            exit(1);
+        }
+
+        map<string, string> config;
+        read_rc_file(config);
+
+        string code_template = string(argv[2]);
+        bool valid = false;
+        for (string ct : SUPPORTED_LANGUAGES) {
+            if (code_template == ct) {
+                valid = true;
+            }
+        }
+
+        if (!valid) {
+            cerr << "Unsupported language: " << code_template << endl;
+            exit(1);
+        }
+
+        string key = "";
+        string ext = "";
+        if (code_template == "cpp") {
+            key = "cpp_template";
+            ext = "cpp";
+        } else if (code_template == "java") {
+            key = "java_template";
+            ext = "java";
+        } else if (code_template == "python") {
+            key = "python_template";
+            ext = "py";
+        } else if (code_template == "ruby") {
+            key = "ruby_template";
+            ext = "rb";
+        }
+
+        if (strcmp(argv[3], "codeforces") == 0) {
+            int contest_id = -1;
+            if (argc == 5) {
+                if (!is_int(argv[4])) {
+                    cerr << "Invalid codeforces contest ID!" << endl;
+                    exit(1);
+                }
+                contest_id = atoi(argv[4]);
+            }
+            string problems[] = {"A", "B", "C", "D", "E"};
+            for (string problem : problems) {
+                system(("mkdir -p " + problem).c_str());
+                if (config.count(key) == 1) {
+                    string command = "cp " + config[key];
+
+                    // Keep file name for Java, usually Main.java
+                    if (code_template == "java") {
+                        command += " " + problem + "/";
+                        system(command.c_str());
+                    } else {
+                        command += " " + problem + "/" + problem + "." + ext;
+                        system(command.c_str());
+                    }
+                } else {
+                    string file_name = problem + "/";
+                    // Keep file name for Java
+                    if (code_template == "java") {
+                        file_name += "Main.java";
+                    } else {
+                        file_name += problem + "." + ext;
+                    }
+                    ofstream solution(file_name);
+                    if (solution.fail()) {
+                        cerr << "Couldn't open file " + file_name << endl;
+                        exit(1);
+                    }
+
+                    if (code_template == "cpp") {
+                        solution << BASIC_CPP_TEMPLATE;
+                    } else if (code_template == "java") {
+                        solution << BASIC_JAVA_TEMPLATE;
+                    } else if (code_template == "python") {
+                        solution << BASIC_PYTHON_TEMPLATE;
+                    } else if (code_template == "ruby") {
+                        solution << BASIC_RUBY_TEMPLATE;
+                    }
+                    solution.close();
+                }
+
+            }
+
+            // Download pretests
+            if (contest_id != -1) {
+                string id = to_s(contest_id);
+                system(("cf_parser " + id).c_str());
+            }
+        }
+    } if (strcmp(argv[1], "add") == 0) {
         int test_id = 0;
         string exec_name;
         ifstream info_file(".test_info");

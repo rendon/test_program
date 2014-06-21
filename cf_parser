@@ -1,0 +1,146 @@
+#!/usr/bin/python
+
+# Python 2->3 libraries that were renamed.
+try:
+    from urllib2 import urlopen
+except:
+    from urllib.request import urlopen
+try:
+    from HTMLParser import HTMLParser
+except:
+    from html.parser import HTMLParser
+
+# Other libraries.
+from sys import argv
+from subprocess import call
+from functools import partial, wraps
+import re
+ 
+# User modifiable constants:
+INPUT_FILE='.in_'
+OUTPUT_FILE='.out_'
+
+# Do not modify these!
+VERSION='CodeForces Parser v1.3'
+
+class CodeforcesProblemParser(HTMLParser):
+
+    def __init__(self, folder):
+        HTMLParser.__init__(self)
+        self.folder = folder
+        self.num_tests = 0
+        self.testcase = None
+        self.start_copy = False
+        self.add = ''
+    
+    def handle_starttag(self, tag, attrs):
+        if tag == 'div':
+            if attrs == [('class', 'input')]:
+                self.num_tests += 1
+                name = '%s/%s%d.txt' % (self.folder, INPUT_FILE, self.num_tests)
+                self.testcase = open(name, 'w')
+            elif attrs == [('class', 'output')]:
+                name = '%s/%s%d.txt' % (self.folder, OUTPUT_FILE,self.num_tests)
+                self.testcase = open(name, 'w')
+        elif tag == 'pre':
+            if self.testcase != None:
+                self.start_copy = True
+ 
+    def handle_endtag(self, tag):
+        if tag == 'br':
+            if self.start_copy:
+                self.testcase.write('\n')
+        if tag == 'pre':
+            if self.start_copy:
+                self.testcase.close()
+                self.testcase = None
+                self.start_copy = False
+    
+    def handle_entityref(self, name):
+        if self.start_copy:
+            self.add += self.unescape(('&%s;' % name))
+ 
+    def handle_data(self, data):
+        if self.start_copy:
+            self.testcase.write(self.add+data)
+            self.add = ''
+            
+class CodeforcesContestParser(HTMLParser):
+
+    def __init__(self, contest):
+        HTMLParser.__init__(self)
+        self.contest = contest
+        self.start_contest = False
+        self.start_problem = False
+        self.toggle = False
+        self.name = ''
+        self.problems = []
+        self.problem_names = []
+    
+    def handle_starttag(self, tag, attrs):
+        contest = self.contest
+        if tag == 'a':
+            temp = [('style', 'color: black'),
+                    ('href', '/contest/%s' % (contest))]
+            if self.name == '' and attrs == temp:
+                self.start_contest = True
+            else:
+                regexp = re.compile(r'[.]*/contest/%s/problem/[A-Z]' % contest)
+                string = str(attrs[0])
+                search = regexp.search(string)
+                if search is not None:
+                    if self.toggle:
+                        self.toggle = False
+                        self.start_problem = True
+                        self.problems.append(search.group(0).split('/')[-1])
+                    else:
+                        self.toggle = True
+ 
+    def handle_endtag(self, tag):
+        if tag == 'a' and self.start_contest:
+            self.start_contest = False
+        elif self.start_problem:
+            self.start_problem = False
+ 
+    def handle_data(self, data):
+        if self.start_contest:
+            self.name = data
+        elif self.start_problem:
+            self.problem_names.append(data)
+        
+ 
+def parse_problem(folder, contest, problem):
+    url = 'http://codeforces.com/contest/%s/problem/%s' % (contest, problem)
+    html = urlopen(url).read()
+    parser = CodeforcesProblemParser(folder)
+    parser.feed(html.decode('utf-8'))
+    return parser.num_tests
+    
+def parse_contest(contest):
+    url = 'http://codeforces.com/contest/%s' % (contest)
+    html = urlopen(url).read()
+    parser = CodeforcesContestParser(contest)
+    parser.feed(html.decode('utf-8'))
+    return parser
+ 
+def main():
+    print (VERSION)
+    contest = argv[1]
+    
+    print ('Parsing contest %s, please wait...' % contest)
+    content = parse_contest(contest)
+    print ('Found %d problems!' % (len(content.problems)))
+    
+    for index, problem in enumerate(content.problems):
+        print ('Downloading Problem %s: %s...' % (problem, content.problem_names[index]))
+        folder = '%s/' % (problem)
+        call(['mkdir', '-p', folder])
+        num_tests = parse_problem(folder, contest, problem)
+        test_info = open(folder + '/.test_info', 'w')
+        test_info.write(str(num_tests) + ' ' + problem )
+        test_info.close
+
+        print('%d sample test(s) found.' % num_tests)
+ 
+if __name__ == '__main__':
+    main()
