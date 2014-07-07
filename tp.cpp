@@ -697,7 +697,7 @@ int main(int argc, char **argv)
 
     const char *cmd = argv[1];
 
-    // Proccess options
+    // Process options
     if (starts_with(cmd, "--")) {
         if (strcmp(cmd, "--version") == 0) {
             cout << tp_version_string << endl;
@@ -714,7 +714,7 @@ int main(int argc, char **argv)
     }
 
     int code = EXIT_SUCCESS;
-    // Proccess commands
+    // Process commands
     if (strcmp(cmd, "help") == 0) {
         if (argc < 3) {
             help("tp");
