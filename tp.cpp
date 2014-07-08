@@ -108,11 +108,11 @@ const char BASIC_JAVA_TEMPLATE[] =
 
 const char BASIC_PYTHON_TEMPLATE[] =
 "#!/usr/bin/python\n"
-"print 'Let's do it!'\n";
+"print \"Let's do it!\"\n";
 
 const char BASIC_RUBY_TEMPLATE[] =
 "#!/usr/bin/ruby\n"
-"puts 'Let's do it!'\n";
+"puts \"Let's do it!\"\n";
 
 bool is_int(const char *str)
 {
