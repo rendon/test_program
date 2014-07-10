@@ -3,3 +3,5 @@
 .out*
 .test_info
 tp
+TODO.txt
+test/*
