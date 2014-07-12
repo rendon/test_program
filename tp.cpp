@@ -249,6 +249,8 @@ bool do_test(int id, string src_file, string lang, string time_limit)
         ret = false;
     }
 
+    command = "rm " + out;
+    system(command.c_str());
     return ret;
 }
 
