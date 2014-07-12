@@ -5,6 +5,9 @@ GENERAL_ERROR=1
 RUNTIME_ERROR=139           # Segmentation fault code ...?
 TIME_LIMIT_EXCEEDED=124     # timeout return code
 
+RUBY=ruby
+PYTHON=python
+
 # NOTE: This script is automatically called by tp, and thus there are some
 #       assumptions:
 #       - The source code is already compiled
@@ -38,26 +41,63 @@ then
     bash -c "timeout $limit ./$executable < $input_file > $output_file"\
             &> /dev/null
     run_code=$?
-    if [ $run_code != 0 ]
+elif [ $lang == "java" ]
+then
+    executable=$(sed 's/\.java$//' <<< $src)
+    if [ ! -f "$executable.class" ]
     then
-        if [ $run_code == $RUNTIME_ERROR ]
-        then
-            exit $RUNTIME_ERROR;
-        elif [ $run_code == $TIME_LIMIT_EXCEEDED ]
-        then
-            exit $TIME_LIMIT_EXCEEDED
-        else
-            exit $GENERAL_ERROR     # Something gone wrong
-        fi
+        echo "Class file missing."
+        exit $GENERAL_ERROR
     fi
 
-    diff --ignore-all-space  $answer_file $output_file 2>&1 > /dev/null
-    diff_code=$?
-
-    if [ $diff_code == 0 ]
+    bash -c "timeout $limit java $executable < $input_file > $output_file"\
+            &> /dev/null
+    run_code=$?
+    # JVM returns code > 0 if an error occurred
+    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
     then
-        exit $ACCEPTED
+        run_code=$RUNTIME_ERROR
+    fi
+
+elif [ $lang == "ruby" ]
+then
+    bash -c "timeout $limit $RUBY $src < $input_file > $output_file"\
+            &> /dev/null
+    run_code=$?
+    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
+    then
+        run_code=$RUNTIME_ERROR
+    fi
+elif [ $lang == "python" ]
+then
+    bash -c "timeout $limit $PYTHON $src < $input_file > $output_file"\
+            &> /dev/null
+    run_code=$?
+    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
+    then
+        run_code=$RUNTIME_ERROR
+    fi
+fi
+
+if [ $run_code != 0 ]
+then
+    if [ $run_code == $RUNTIME_ERROR ]
+    then
+        exit $RUNTIME_ERROR;
+    elif [ $run_code == $TIME_LIMIT_EXCEEDED ]
+    then
+        exit $TIME_LIMIT_EXCEEDED
     else
-        exit $WRONG_ANSWER
+        exit $GENERAL_ERROR     # Something gone wrong
     fi
+fi
+
+diff --ignore-all-space  $answer_file $output_file 2>&1 > /dev/null
+diff_code=$?
+
+if [ $diff_code == 0 ]
+then
+    exit $ACCEPTED
+else
+    exit $WRONG_ANSWER
 fi
