@@ -391,8 +391,8 @@ int generate_template(string code_template, string file_name)
     // If the user has specified a custom template
     if (config.count(key) == 1) {
         string command = "cp " + config[key] + " " + file_name;
-        int code = system(command.c_str());
-        return code;
+        int status = system(command.c_str());
+        return status;
     } else {
         // Generate minimal template
         ofstream solution(file_name);
@@ -494,8 +494,20 @@ int test(int argc, char **argv)
         return 1;
     }
 
-    string action = string(argv[2]);
+    if (argc > 4) {
+        unknown_option(argv[4]);
+        return 1;
+    }
 
+    string action = string(argv[2]);
+    map<string, string> config;
+    int status = read_config_file(TEST_INFO_FILE, config);
+    if (status != 0 && action != "add") {
+        cerr << "Couldn't open info file." << endl;
+        return 1;
+    }
+
+    int total = 0;
     if (action == "add") {
         //region test add
         if (argc > 3) {
@@ -503,13 +515,10 @@ int test(int argc, char **argv)
             return 1;
         }
 
-        int total = 0;
         string src_file;
         string lang;
         string time_limit;
-        map<string, string> config;
-        int code = read_config_file(TEST_INFO_FILE, config);
-        if (code != 0) {
+        if (status != 0) {
             total = 1;
             cout << "Source file: ";
             cin >> src_file;
@@ -532,8 +541,8 @@ int test(int argc, char **argv)
             config["tests"] = to_s(total);
         }
 
-        code = write_config_file(TEST_INFO_FILE, config);
-        if (code != 0) {
+        status = write_config_file(TEST_INFO_FILE, config);
+        if (status != 0) {
             cerr << "Couldn't write Test Info file." << endl;
             return 1;
         }
@@ -558,34 +567,48 @@ int test(int argc, char **argv)
         return system(command.c_str());
         //endregion
     } else if (action == "rm") {
-        // Pending
+        if (argc < 4) {
+            cerr << "You must specify a test ID." << endl;
+            return 1;
+        }
+
+        total = atoi(config["tests"].c_str());
+        int id = atoi(argv[3]);
+        if (!is_int(argv[3]) || id < 1 || id > total) {
+            cerr << "Invalid test ID!" << endl;
+            return 1;
+        }
+
+        status = 0;
+        string command = "rm .in_" + to_s(id) + ".txt " + ".out_" + to_s(id) + ".txt";
+        status += system(command.c_str());
+        for (int i = id + 1; i <= total; i++) {
+            command = "mv .in_" + to_s(i) + ".txt " +
+                      "   .in_" + to_s(i - 1) + ".txt";
+            status += system(command.c_str());
+
+            command = "mv .out_" + to_s(i) + ".txt " +
+                      "   .out_" + to_s(i - 1) + ".txt";
+            status += system(command.c_str());
+        }
+
+        total--;
+        config["tests"] = to_s(total);
+        status += write_config_file(TEST_INFO_FILE, config);
+        if (status == 0) {
+            cout << "Test " << id << " deleted." << endl;
+        }
+        return status;
     } else if (action == "edit") {
         //region test edit
         if (argc < 4) {
             cerr << "You must specify a test ID." << endl;
             return 1;
         }
-        if (!is_int(argv[3])) {
-            cerr << "Invalid test ID!" << endl;
-            return 1;
-        }
 
-        if (argc > 4) {
-            unknown_option(argv[4]);
-            return 1;
-        }
-
-        int total;
-        map<string, string> config;
-        int status = read_config_file(TEST_INFO_FILE, config);
-        if (status != 0) {
-            cerr << "Couldn't open info file." << endl;
-            return 1;
-        }
         total = atoi(config["tests"].c_str());
-
         int id = atoi(argv[3]);
-        if (id < 1 || id > total) {
+        if (!is_int(argv[3]) || id < 1 || id > total) {
             cerr << "Invalid test ID!" << endl;
             return 1;
         }
@@ -593,26 +616,13 @@ int test(int argc, char **argv)
         string in_name = ".in_" + to_s(id) + ".txt";
         string out_name = ".out_" + to_s(id) + ".txt";
         string vim = "vim -O " + in_name + " " + out_name;
-        int code = system(vim.c_str());
+        status = system(vim.c_str());
 
-        return code;
+        return status;
         //endregion
     } else if (action == "show") {
         //region test show
-        int total;
-        map<string, string> config;
-        int code = read_config_file(TEST_INFO_FILE, config);
-        if (code != 0) {
-            cerr << "Couldn't open info file." << endl;
-            return 1;
-        }
-        
         total = atoi(config["tests"].c_str());
-
-        if (argc > 4) {
-            unknown_option(argv[4]);
-            return 1;
-        }
 
         if (argc == 4 && is_int(argv[3])) {
             int id = atoi(argv[3]);
@@ -629,22 +639,10 @@ int test(int argc, char **argv)
         //endregion
     } else if (action == "run") {
         //region test run
-        map<string, string> config;
-        int code = read_config_file(TEST_INFO_FILE, config);
-        if (code != 0) {
-            cerr << "Couldn't open info file." << endl;
-            return 1;
-        } 
-
-        int total = atoi(config["tests"].c_str());
+        total = atoi(config["tests"].c_str());
         string src_file = config["src_file"];
         string lang = config["lang"];
         string time_limit = config["time_limit"];
-
-        if (argc > 4) {
-            unknown_option(argv[4]);
-            return 1;
-        }
 
         int total_tests = total;
         int success = 0;
@@ -692,7 +690,7 @@ int test(int argc, char **argv)
 
 int clean(int argc, char **argv)
 {
-    int code = 0;
+    int status = 0;
     if (argc > 3) {
         unknown_option(argv[3]);
         return 1;
@@ -700,14 +698,14 @@ int clean(int argc, char **argv)
 
     // clean recursively
     if (argc == 3 && strcmp(argv[2], "-r") == 0) {
-        code = system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
+        status = system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
                              -exec rm -v {} \\;");
     } else {
-        code = system("find -maxdepth 1\
+        status = system("find -maxdepth 1\
                             -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
                             -exec rm -v {} \\;");
     }
-    return code;
+    return status;
 }
 
 
@@ -766,7 +764,7 @@ int main(int argc, char **argv)
         }
     }
 
-    int code = EXIT_SUCCESS;
+    int status = EXIT_SUCCESS;
     // Process commands
     if (strcmp(cmd, "help") == 0) {
         if (argc < 3) {
@@ -775,18 +773,18 @@ int main(int argc, char **argv)
             help(argv[2]);
         }
     } if (strcmp(cmd, "init") == 0) {
-        code = init(argc, argv);
+        status = init(argc, argv);
     } if (strcmp(cmd, "test") == 0) {
-        code = test(argc, argv);
+        status = test(argc, argv);
     } else if (strcmp(cmd, "gen") == 0) {
-        code = gen(argc, argv);
+        status = gen(argc, argv);
     } else if (strcmp(cmd, "clean") == 0) {
-        code = clean(argc, argv);
+        status = clean(argc, argv);
     } else {
         unknown_option(cmd);
-        code = 1;
+        status = 1;
     }
 
-    return code;
+    return status;
 }
 
