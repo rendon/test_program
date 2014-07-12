@@ -82,15 +82,20 @@ const char tp_clean_help_string[] =
 const string COLOR_OFF  = "\e[0m";
 const string GREEN      = "\e[0;32m";
 const string RED        = "\e[0;31m";
-
-const string BOLD_BLUE  = "\e[1;34m";
-const string BOLD_WHITE = "\e[1;37m";
+const string YELLOW     = "\e[0;33m";
+const string MAGENTA    = "\e[0;35m";
 
 const string TEST_INFO_FILE = ".test_info";
 const string RC_FILE    = "~/.tprc";
 const string SUPPORTED_LANGUAGES[] = {"cpp", "java", "python", "ruby"};
 
 const string CONTEST_CODEFORCES = "codeforces";
+
+const int ACCEPTED                  = 0;
+const int GENERAL_ERROR             = 1;
+const int WRONG_ANSWER              = 2;
+const int RUNTIME_ERROR             = 139; // Are you sure?
+const int TIME_LIMIT_EXCEEDED       = 124;
 
 const char BASIC_CPP_TEMPLATE[] =
 "#include <bits/stdc++.h>\n"
@@ -127,10 +132,17 @@ string to_s(int n)
     return string(buff);
 }
 
-bool starts_with(const char *str, const char *prefix)
+string to_s(double n)
 {
-    int n = strlen(str);
-    int m = strlen(prefix);
+    char buff[50];
+    sprintf(buff, "%lf", n);
+    return string(buff);
+}
+
+bool starts_with(const string &str, const string &prefix)
+{
+    int n = str.length();
+    int m = prefix.length();
     if (m > n) {
         return false;
     }
@@ -145,10 +157,10 @@ bool starts_with(const char *str, const char *prefix)
     return true;
 }
 
-bool ends_with(const char *str, const char *suffix)
+bool ends_with(const string &str, const string &suffix)
 {
-    int n = strlen(str);
-    int m = strlen(suffix);
+    int n = str.length();
+    int m = suffix.length();
     if (m > n) {
         return false;
     }
@@ -164,51 +176,78 @@ bool ends_with(const char *str, const char *suffix)
     return true;
 }
 
+string get_language(string file_name)
+{
+    string lang;
+    if (ends_with(file_name, ".cpp")) {
+        lang = "cpp";
+    } else if (ends_with(file_name, ".java")) {
+        lang = "java";
+    } else if (ends_with(file_name, "rb")) {
+        lang = "ruby";
+    } else if (ends_with(file_name, ".py")) {
+        lang = "python";
+    }
+
+    return lang;
+}
+
 void unknown_option(string str)
 {
     cerr << "Unknown option: " << str << endl;
 }
 
-bool do_test(int id, string exec_name)
+bool do_test(int id, string src_file, string lang, string time_limit)
 {
+    string in = ".in_" + to_s(id) + ".txt";
+    string out = "/tmp/out_" + to_s(id) + ".txt";
+    string ans = ".out_" + to_s(id) + ".txt";
+    string command = "tp-runner " + src_file + " " + in + " " + out + " "
+                   + ans + " " + lang + " " + time_limit;
+
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    exec_name = "./" + exec_name;
-    string tmp_out = "/tmp/out_" + to_s(id);
-    string in = ".in_" + to_s(id) + ".txt";
-    string command = exec_name + " < " + in + " > " + tmp_out;
-    system(command.c_str());
-
-    string out = ".out_" + to_s(id) + ".txt";
-    string diff = "diff --ignore-all-space "
-                + out + " " + tmp_out + " 2>&1 > /dev/null";
-    bool ret = true;
-    int code = system(diff.c_str());
-
+    int run_exit_code = system(command.c_str());
     gettimeofday(&end, NULL);
+
+    // When the external program does not terminate normally the code passed to
+    // exit() is stored in the last 8 bits. In case of success this operation
+    // doesn't have effect.
+    run_exit_code >>= 8;
+
+    bool ret = true;
     long seconds = end.tv_sec - start.tv_sec;
     long useconds = end.tv_usec - start.tv_usec;
     double t = (seconds * 1000 + useconds * 0.001) * 0.001;
 
-    if (code == 0) {
-        cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
-             << "Test #" + to_s(id) + ": PASS" << COLOR_OFF << endl;
-    } else {
+    if (run_exit_code == RUNTIME_ERROR)  {
+        cout << MAGENTA << fixed << setprecision(3) << "[" << t << "] "
+            << "Test #" + to_s(id) + ": RTE" << COLOR_OFF << endl;
+        ret = false;
+    } else if (run_exit_code == TIME_LIMIT_EXCEEDED) {
+        cout << YELLOW << fixed << setprecision(3) << "[" << t << "] "
+            << "Test #" + to_s(id) + ": TLE" << COLOR_OFF << endl;
+        ret = false;
+    } else  if (run_exit_code == ACCEPTED) {
+            cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
+                << "Test #" + to_s(id) + ": AC" << COLOR_OFF << endl;
+    } else if (run_exit_code == WRONG_ANSWER) {
         cout << RED << fixed << setprecision(3) << "[" << t << "] "
-             << "Test #" + to_s(id) + ": FAIL" << COLOR_OFF << endl;
+            << "Test #" + to_s(id) + ": WA" << COLOR_OFF << endl;
+
         cout << "== EXPECTED OUTPUT == " << endl;
-        string cat = "cat " + out;
+        string cat = "cat " + ans;
         system(cat.c_str());
 
         cout << endl << "== ACTUAL OUTPUT == " << endl;
-        cat = "cat " + tmp_out;
+        cat = "cat " + out;
         system(cat.c_str());
         cout << endl;
         ret = false;
+    } else {
+        cout << RED << "Error..." << COLOR_OFF << endl;
+        ret = false;
     }
-
-    string rm = "rm " + tmp_out;
-    system(rm.c_str());
 
     return ret;
 }
@@ -250,15 +289,17 @@ void show_test(int id)
     output.close();
 }
 
-int read_rc_file(map<string, string> &config)
+int read_config_file(string file_name, map<string, string> &config)
 {
     wordexp_t exp_result;
-    wordexp(RC_FILE.c_str(), &exp_result, 0);
-    ifstream file(exp_result.we_wordv[0]);
-    if (file.fail()) { return 1; }
+    wordexp(file_name.c_str(), &exp_result, 0);
+    ifstream config_file(exp_result.we_wordv[0]);
+    if (config_file.fail()) {
+        return 1;
+    }
 
     string line;
-    while (getline(file, line)) {
+    while (getline(config_file, line)) {
         string key = "";
         string value = "";
         int i = 0, end = line.length();
@@ -285,9 +326,26 @@ int read_rc_file(map<string, string> &config)
         config[key] = value;
     }
 
-    file.close();
+    config_file.close();
     return 0;
 }
+
+int write_config_file(string file_name, map<string, string> &config)
+{
+    ofstream config_file(file_name);
+    if (config_file.fail()) {
+        cerr << "Couldn't open file: " + file_name << endl;
+        return 1;
+    }
+
+    for  (auto c : config) {
+        config_file << c.first << " = " << c.second << endl;
+    }
+
+    config_file.close();
+    return 0;
+}
+
 
 void help(string cmd)
 {
@@ -325,7 +383,7 @@ int generate_template(string code_template, string file_name)
     }
 
     map<string, string> config;
-    read_rc_file(config);
+    read_config_file(RC_FILE, config);
 
     file_name += "." + ext;
     // If the user has specified a custom template
@@ -444,23 +502,39 @@ int test(int argc, char **argv)
         }
 
         int total = 0;
-        string exec_name;
-        ifstream info_file(TEST_INFO_FILE);
-        if (info_file.fail()) {
+        string src_file;
+        string lang;
+        string time_limit;
+        map<string, string> config;
+        int code = read_config_file(TEST_INFO_FILE, config);
+        if (code != 0) {
             total = 1;
-            cout << "Executable: ";
-            cin >> exec_name;
-            getchar(); // '\n'
+            cout << "Source file: ";
+            cin >> src_file;
+            time_limit = "1s"; // One second by default
+            lang = get_language(src_file);
+            if (lang.empty()) {
+                cerr << "Bad file name or unsupported language :(" << endl;
+                return 1;
+            }
+            config["tests"] = to_s(1);
+            config["src_file"] = src_file;
+            config["time_limit"] = time_limit;
+            config["lang"] = lang;
         } else {
-            info_file >> total;
-            info_file >> exec_name;
-            info_file.close();
-            total++;
+            total = atoi(config["tests"].c_str()) + 1;
+            src_file = config["src_file"];
+            lang = config["lang"];
+            time_limit = config["time_limit"];
+
+            config["tests"] = to_s(total);
         }
 
-        ofstream new_info_file(TEST_INFO_FILE);
-        new_info_file << total << " " << exec_name;
-        new_info_file.close();
+        code = write_config_file(TEST_INFO_FILE, config);
+        if (code != 0) {
+            cerr << "Couldn't write Test Info file." << endl;
+            return 1;
+        }
 
         string in_name = ".in_" + to_s(total) + ".txt";
         ofstream input_file(in_name.c_str(), ios::out);
@@ -478,9 +552,8 @@ int test(int argc, char **argv)
 
         input_file.close();
         output_file.close();
-        string vim = "vim -O " + in_name + " " + out_name;
-        int code = system(vim.c_str());
-        exit(code);
+        string command = "vim -O " + in_name + " " + out_name;
+        return system(command.c_str());
         //endregion
     } else if (action == "rm") {
         // Pending
@@ -501,13 +574,13 @@ int test(int argc, char **argv)
         }
 
         int total;
-        ifstream info_file(TEST_INFO_FILE);
-        if (info_file.fail()) {
+        map<string, string> config;
+        int status = read_config_file(TEST_INFO_FILE, config);
+        if (status != 0) {
             cerr << "Couldn't open info file." << endl;
             return 1;
         }
-        info_file >> total;
-        info_file.close();
+        total = atoi(config["tests"].c_str());
 
         int id = atoi(argv[3]);
         if (id < 1 || id > total) {
@@ -525,14 +598,14 @@ int test(int argc, char **argv)
     } else if (action == "show") {
         //region test show
         int total;
-        string exec_name;
-        ifstream info_file(TEST_INFO_FILE);
-        if (info_file.fail()) {
+        map<string, string> config;
+        int code = read_config_file(TEST_INFO_FILE, config);
+        if (code != 0) {
             cerr << "Couldn't open info file." << endl;
             return 1;
         }
         
-        info_file >> total;
+        total = atoi(config["tests"].c_str());
 
         if (argc > 4) {
             unknown_option(argv[4]);
@@ -547,22 +620,24 @@ int test(int argc, char **argv)
             }
             show_test(id);
         } else {
-            for (int id = 1; id <= total; id++)
+            for (int id = 1; id <= total; id++) {
                 show_test(id);
+            }
         }
         //endregion
     } else if (action == "run") {
         //region test run
-        int total;
-        string exec_name;
-        ifstream info_file(TEST_INFO_FILE);
-        if (info_file.fail()) {
+        map<string, string> config;
+        int code = read_config_file(TEST_INFO_FILE, config);
+        if (code != 0) {
             cerr << "Couldn't open info file." << endl;
-            exit(1);
+            return 1;
         } 
-        info_file >> total;
-        info_file >> exec_name;
-        info_file.close();
+
+        int total = atoi(config["tests"].c_str());
+        string src_file = config["src_file"];
+        string lang = config["lang"];
+        string time_limit = config["time_limit"];
 
         if (argc > 4) {
             unknown_option(argv[4]);
@@ -579,12 +654,15 @@ int test(int argc, char **argv)
             }
 
             total_tests = 1;
-            if (do_test(id, exec_name))
+            if (do_test(id, src_file, lang, time_limit)) {
                 success++;
+            }
         } else {
-            for (int id = 1; id <= total; id++)
-                if (do_test(id, exec_name))
+            for (int id = 1; id <= total; id++) {
+                if (do_test(id, src_file, lang, time_limit)) {
                     success++;
+                }
+            }
         }
 
         cout << "----------------------" << endl;
@@ -621,31 +699,12 @@ int clean(int argc, char **argv)
     // clean recursively
     if (argc == 3 && strcmp(argv[2], "-r") == 0) {
         code = system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
-                      -exec rm -v {} \\;");
+                             -exec rm -v {} \\;");
     } else {
-        int total;
-        string exec_name;
-        ifstream info_file(TEST_INFO_FILE);
-        if (info_file.fail()) {
-            cerr << "Couldn't open info file." << endl;
-            return 1;
-        }
-
-        info_file >> total;
-        for (int id = 1; id <= total; id++) {
-            string in_name = ".in_" + to_s(id) + ".txt";
-            string out_name = ".out_" + to_s(id) + ".txt";
-            string command = "rm " + in_name;
-            system(command.c_str());
-
-            command = "rm " + out_name + " &> /dev/null";
-            system(command.c_str());
-        }
-
-        info_file.close();
-        code = system("rm .test_info &> /dev/null");
+        code = system("find -maxdepth 1\
+                            -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
+                            -exec rm -v {} \\;");
     }
-
     return code;
 }
 
@@ -662,17 +721,9 @@ int gen(int argc, char **argv)
         return 1;
     }
 
-    string code_template;
     const char *file_name = argv[2];
-    if (ends_with(file_name, ".cpp")) {
-        code_template = "cpp";
-    } else if (ends_with(file_name, ".java")) {
-        code_template = "java";
-    } else if (ends_with(file_name, "rb")) {
-        code_template = "ruby";
-    } else if (ends_with(file_name, ".py")) {
-        code_template = "python";
-    } else {
+    string code_template = get_language(file_name);
+    if (code_template.empty()) {
         cerr << "Bad file name or unsupported language :(" << endl;
         return 1;
     }

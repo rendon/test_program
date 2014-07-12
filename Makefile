@@ -4,8 +4,10 @@ tp: tp.cpp
 
 install: tp
 	cp -v tp /usr/bin/tp
-	cp -v cf_parser /usr/bin/cf_parser
+	cp -v cf-parser /usr/bin/cf-parser
+	cp -v tp-runner /usr/bin/tp-runner
 uninstall:
 	rm -v /usr/bin/tp
-	rm -v /usr/bin/cf_parser
+	rm -v /usr/bin/cf-parser
+	rm -v /usr/bin/tp-runner
 
