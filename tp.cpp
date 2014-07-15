@@ -368,25 +368,19 @@ void help(string cmd)
 int generate_template(string code_template, string file_name)
 {
     string key = "";
-    string ext = "";
     if (code_template == "cpp") {
         key = "cpp_template";
-        ext = "cpp";
     } else if (code_template == "java") {
         key = "java_template";
-        ext = "java";
     } else if (code_template == "python") {
         key = "python_template";
-        ext = "py";
     } else if (code_template == "ruby") {
         key = "ruby_template";
-        ext = "rb";
     }
 
     map<string, string> config;
     read_config_file(RC_FILE, config);
 
-    file_name += "." + ext;
     // If the user has specified a custom template
     if (config.count(key) == 1) {
         string command = "cp " + config[key] + " " + file_name;
@@ -730,14 +724,19 @@ int gen(int argc, char **argv)
     }
 
     int length = strlen(file_name);
-    while (length > 0 && file_name[--length] != '.');
-
-    string fn;
+    while (length > 0 && file_name[--length] != '/');
+    string dir;
     for (int i = 0; i < length; i++) {
-        fn += file_name[i];
+        dir += file_name[i];
     }
 
-    return generate_template(code_template, fn);
+    if (dir != "") {
+        if (system(("mkdir -p " + dir).c_str())) {
+            return 1;
+        }
+    }
+    
+    return generate_template(code_template, file_name);
 }
 
 int main(int argc, char **argv)
