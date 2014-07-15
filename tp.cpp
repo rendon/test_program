@@ -94,8 +94,8 @@ const string CONTEST_CODEFORCES = "codeforces";
 const int ACCEPTED                  = 0;
 const int GENERAL_ERROR             = 1;
 const int WRONG_ANSWER              = 2;
-const int RUNTIME_ERROR             = 139; // Are you sure?
-const int TIME_LIMIT_EXCEEDED       = 124;
+const int RUNTIME_ERROR             = 3;
+const int TIME_LIMIT_EXCEEDED       = 4;
 
 const char BASIC_CPP_TEMPLATE[] =
 "#include <bits/stdc++.h>\n"
@@ -119,6 +119,8 @@ const char BASIC_RUBY_TEMPLATE[] =
 "#!/usr/bin/ruby\n"
 "puts \"Let's do it!\"\n";
 
+/* ========== Utility functions ========== */
+
 bool is_int(const char *str)
 {
     int n;
@@ -129,13 +131,6 @@ string to_s(int n)
 {
     char buff[15];
     sprintf(buff, "%d", n);
-    return string(buff);
-}
-
-string to_s(double n)
-{
-    char buff[50];
-    sprintf(buff, "%lf", n);
     return string(buff);
 }
 
@@ -197,6 +192,8 @@ void unknown_option(string str)
     cerr << "Unknown option: " << str << endl;
 }
 
+/* ============== The tests ============== */
+
 bool do_test(int id, string src_file, string lang, string time_limit)
 {
     string in = ".in_" + to_s(id) + ".txt";
@@ -254,7 +251,7 @@ bool do_test(int id, string src_file, string lang, string time_limit)
     return ret;
 }
 
-void show_test(int id)
+int show_test(int id)
 {
     cout << "Test #" + to_s(id) + ":" << endl;
     string in_name = ".in_" + to_s(id) + ".txt";
@@ -264,12 +261,12 @@ void show_test(int id)
 
     if (!input.is_open()) {
         cerr << "Couldn't open input file!" << endl;
-        exit(1);
+        return 1;
     }
 
     if (!output.is_open()) {
         cerr << "Couldn't open output file!" << endl;
-        exit(1);
+        return 1;
     }
 
     cout << "== INPUT ==" << endl;
@@ -289,6 +286,8 @@ void show_test(int id)
     cout << endl;
     input.close();
     output.close();
+
+    return 0;
 }
 
 int read_config_file(string file_name, map<string, string> &config)
@@ -624,18 +623,20 @@ int test(int argc, char **argv)
         //region test show
         total = atoi(config["tests"].c_str());
 
+        status = 0;
         if (argc == 4 && is_int(argv[3])) {
             int id = atoi(argv[3]);
             if (id < 1 || id > total) {
                 cerr << "Invalid test ID!" << endl;
                 return 1;
             }
-            show_test(id);
+            status += show_test(id);
         } else {
             for (int id = 1; id <= total; id++) {
-                show_test(id);
+                status += show_test(id);
             }
         }
+        return status;
         //endregion
     } else if (action == "run") {
         //region test run

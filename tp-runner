@@ -1,9 +1,9 @@
 #!/bin/bash
 ACCEPTED=0
-WRONG_ANSWER=2
 GENERAL_ERROR=1
-RUNTIME_ERROR=139           # Segmentation fault code ...?
-TIME_LIMIT_EXCEEDED=124     # timeout return code
+WRONG_ANSWER=2
+RUNTIME_ERROR=3
+TIME_LIMIT_EXCEEDED=4
 
 RUBY=ruby
 PYTHON=python
@@ -41,6 +41,7 @@ then
     bash -c "timeout $limit ./$executable < $input_file > $output_file"\
             &> /dev/null
     run_code=$?
+
 elif [ $lang == "java" ]
 then
     executable=$(sed 's/\.java$//' <<< $src)
@@ -53,42 +54,27 @@ then
     bash -c "timeout $limit java $executable < $input_file > $output_file"\
             &> /dev/null
     run_code=$?
-    # JVM returns code > 0 if an error occurred
-    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
-    then
-        run_code=$RUNTIME_ERROR
-    fi
-
+    
 elif [ $lang == "ruby" ]
 then
     bash -c "timeout $limit $RUBY $src < $input_file > $output_file"\
             &> /dev/null
     run_code=$?
-    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
-    then
-        run_code=$RUNTIME_ERROR
-    fi
+
 elif [ $lang == "python" ]
 then
     bash -c "timeout $limit $PYTHON $src < $input_file > $output_file"\
             &> /dev/null
     run_code=$?
-    if [ $run_code != $TIME_LIMIT_EXCEEDED -a $run_code -gt 0 ]
-    then
-        run_code=$RUNTIME_ERROR
-    fi
 fi
 
 if [ $run_code != 0 ]
 then
-    if [ $run_code == $RUNTIME_ERROR ]
-    then
-        exit $RUNTIME_ERROR;
-    elif [ $run_code == $TIME_LIMIT_EXCEEDED ]
+    if [ $run_code == 124 ] # timeout command return code
     then
         exit $TIME_LIMIT_EXCEEDED
     else
-        exit $GENERAL_ERROR     # Something gone wrong
+        exit $RUNTIME_ERROR
     fi
 fi
 
