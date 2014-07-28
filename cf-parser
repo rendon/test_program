@@ -143,8 +143,8 @@ def main():
         test_info = open(folder + '/.test_info', 'w')
         test_info.write('tests = ' + str(num_tests) + '\n')
         test_info.write('src_file = ' + problem + ext + '\n')
-        test_info.write('lang = cpp\n')
-        test_info.write('time_limit = 1s\n')
+        test_info.write('lang = ' + lang  + '\n')
+        test_info.write('time_limit = 1s' + '\n')
         test_info.close
 
         print('%d sample test(s) found.' % num_tests)
