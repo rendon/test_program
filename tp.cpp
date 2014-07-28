@@ -121,10 +121,27 @@ const char BASIC_RUBY_TEMPLATE[] =
 
 /* ========== Utility functions ========== */
 
+/* Basic test to check if the str represents an integer. */
 bool is_int(const char *str)
 {
-    int n;
-    return sscanf(str, "%d", &n) != EOF;
+    int length = strlen(str);
+    if (length == 0) {
+        return false;
+    }
+
+    int i = 0;
+    if (str[0] == '+' || str[0] == '-') {
+        i++;
+    }
+
+    while (i < length) {
+        if (!isdigit(str[i])) {
+            return false;
+        }
+        i++;
+    }
+
+    return true;
 }
 
 string to_s(int n)
@@ -365,16 +382,16 @@ void help(string cmd)
     }
 }
 
-int generate_template(string code_template, string file_name)
+int generate_template(string lang, string file_name)
 {
     string key = "";
-    if (code_template == "cpp") {
+    if (lang == "cpp") {
         key = "cpp_template";
-    } else if (code_template == "java") {
+    } else if (lang == "java") {
         key = "java_template";
-    } else if (code_template == "python") {
+    } else if (lang == "python") {
         key = "python_template";
-    } else if (code_template == "ruby") {
+    } else if (lang == "ruby") {
         key = "ruby_template";
     }
 
@@ -394,13 +411,13 @@ int generate_template(string code_template, string file_name)
             return 1;
         }
 
-        if (code_template == "cpp") {
+        if (lang == "cpp") {
             solution << BASIC_CPP_TEMPLATE;
-        } else if (code_template == "java") {
+        } else if (lang == "java") {
             solution << BASIC_JAVA_TEMPLATE;
-        } else if (code_template == "python") {
+        } else if (lang == "python") {
             solution << BASIC_PYTHON_TEMPLATE;
-        } else if (code_template == "ruby") {
+        } else if (lang == "ruby") {
             solution << BASIC_RUBY_TEMPLATE;
         }
         solution.close();
@@ -417,10 +434,10 @@ int init(int argc, char **argv)
     }
 
     string contest = string(argv[2]);
-    string code_template = "cpp"; // C++ by default
+    string lang = "cpp"; // C++ by default
 
     if (argc > 3) {
-        code_template = string(argv[3]);
+        lang = string(argv[3]);
     }
 
     if (argc > 4) {
@@ -431,13 +448,13 @@ int init(int argc, char **argv)
 
     bool valid = false;
     for (string ct : SUPPORTED_LANGUAGES) {
-        if (code_template == ct) {
+        if (lang == ct) {
             valid = true;
         }
     }
 
     if (!valid) {
-        cerr << "Unsupported language: " << code_template << endl;
+        cerr << "Unsupported language: " << lang << endl;
         return 1;
     }
 
@@ -460,19 +477,26 @@ int init(int argc, char **argv)
             string file_name = problem + "/";
 
             // Keep file name for Java, usually Main.java
-            if (code_template == "java") {
-                file_name += "Main";
+            if (lang == "java") {
+                file_name += "Main.java";
             } else {
                 file_name += problem;
+                if (lang == "cpp") {
+                    file_name += ".cpp";
+                } else if (lang == "ruby") {
+                    file_name += ".rb";
+                } else if (lang == "python") {
+                    file_name += ".py";
+                }
             }
 
-            generate_template(code_template, file_name);
+            generate_template(lang, file_name);
         }
 
         // Download pretests
         if (contest_id != -1) {
             string id = to_s(contest_id);
-            system(("cf_parser " + id).c_str());
+            system(("cf-parser " + id + " " + lang).c_str());
         }
     }
 
@@ -717,8 +741,8 @@ int gen(int argc, char **argv)
     }
 
     const char *file_name = argv[2];
-    string code_template = get_language(file_name);
-    if (code_template.empty()) {
+    string lang = get_language(file_name);
+    if (lang.empty()) {
         cerr << "Bad file name or unsupported language :(" << endl;
         return 1;
     }
@@ -736,7 +760,7 @@ int gen(int argc, char **argv)
         }
     }
     
-    return generate_template(code_template, file_name);
+    return generate_template(lang, file_name);
 }
 
 int main(int argc, char **argv)
@@ -772,9 +796,9 @@ int main(int argc, char **argv)
         } else {
             help(argv[2]);
         }
-    } if (strcmp(cmd, "init") == 0) {
+    } else if (strcmp(cmd, "init") == 0) {
         status = init(argc, argv);
-    } if (strcmp(cmd, "test") == 0) {
+    } else if (strcmp(cmd, "test") == 0) {
         status = test(argc, argv);
     } else if (strcmp(cmd, "gen") == 0) {
         status = gen(argc, argv);

@@ -22,6 +22,7 @@ OUTPUT_FILE='.out_'
 
 # Do not modify these!
 VERSION='CodeForces Parser v1.3'
+extensions = {'cpp': '.cpp', 'java': '.java', 'ruby': '.rb', 'python': '.py'}
 
 class CodeforcesProblemParser(HTMLParser):
 
@@ -126,6 +127,8 @@ def parse_contest(contest):
 def main():
     print (VERSION)
     contest = argv[1]
+    lang = argv[2]
+    ext = extensions[lang]
     
     print ('Parsing contest %s, please wait...' % contest)
     content = parse_contest(contest)
@@ -136,8 +139,12 @@ def main():
         folder = '%s/' % (problem)
         call(['mkdir', '-p', folder])
         num_tests = parse_problem(folder, contest, problem)
+
         test_info = open(folder + '/.test_info', 'w')
-        test_info.write(str(num_tests) + ' ' + problem )
+        test_info.write('tests = ' + str(num_tests) + '\n')
+        test_info.write('src_file = ' + problem + ext + '\n')
+        test_info.write('lang = cpp\n')
+        test_info.write('time_limit = 1s\n')
         test_info.close
 
         print('%d sample test(s) found.' % num_tests)
