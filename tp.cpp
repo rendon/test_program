@@ -341,7 +341,9 @@ int read_config_file(string file_name, map<string, string> &config)
             value += line[i++];
         }
 
-        config[key] = value;
+        if (!key.empty() && !value.empty()) {
+            config[key] = value;
+        }
     }
 
     config_file.close();
