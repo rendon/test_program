@@ -10,7 +10,9 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <regex>
 #include <map>
+#include <set>
 
 #include <wordexp.h>
 #include <sys/time.h>
@@ -87,7 +89,7 @@ const string MAGENTA    = "\e[0;35m";
 
 const string TEST_INFO_FILE = ".test_info";
 const string RC_FILE    = "~/.tprc";
-const string SUPPORTED_LANGUAGES[] = {"cpp", "java", "python", "ruby"};
+const set<string> SUPPORTED_LANGUAGES = {"cpp", "java", "python", "ruby"};
 
 const string CONTEST_CODEFORCES = "codeforces";
 
@@ -191,13 +193,14 @@ bool ends_with(const string &str, const string &suffix)
 string get_language(string file_name)
 {
     string lang;
-    if (ends_with(file_name, ".cpp")) {
+    int length = file_name.length(); // Prevent files like ".ext"
+    if (length > 4 && ends_with(file_name, ".cpp")) {
         lang = "cpp";
-    } else if (ends_with(file_name, ".java")) {
+    } else if (length > 5 && ends_with(file_name, ".java")) {
         lang = "java";
-    } else if (ends_with(file_name, "rb")) {
+    } else if (length > 3 && ends_with(file_name, ".rb")) {
         lang = "ruby";
-    } else if (ends_with(file_name, ".py")) {
+    } else if (length > 3 && ends_with(file_name, ".py")) {
         lang = "python";
     }
 
@@ -366,24 +369,6 @@ int write_config_file(string file_name, map<string, string> &config)
     return 0;
 }
 
-
-void help(string cmd)
-{
-    if (cmd == "tp") {
-        cout << tp_help_string << endl;
-    } else if (cmd == "init") {
-        cout << tp_init_help_string << endl;
-    } else if (cmd == "test") {
-        cout << tp_test_help_string << endl;
-    } else if (cmd == "gen") {
-        cout << tp_gen_help_string << endl;
-    } else if (cmd == "clean") {
-        cout << tp_clean_help_string << endl;
-    } else {
-        cout << "Unknown command: " << cmd << endl;
-    }
-}
-
 int generate_template(string lang, string file_name)
 {
     string key = "";
@@ -403,7 +388,7 @@ int generate_template(string lang, string file_name)
     // If the user has specified a custom template
     if (config.count(key) == 1) {
         string command = "cp " + config[key] + " " + file_name;
-        int status = system(command.c_str());
+        int status = system(command.c_str()) >> 8;
         return status;
     } else {
         // Generate minimal template
@@ -428,6 +413,81 @@ int generate_template(string lang, string file_name)
     return 0;
 }
 
+/**
+ * Generates Makefile for the corresponding language.
+ * @param src_file Source code file name.
+ * @param lang Programming language
+ * @return Integer describing the status of the operation, success or failure.
+ */
+int generate_makefile(string src_file)
+{
+    string lang = get_language(src_file);
+    if (lang.empty()) {
+        return 1;
+    }
+
+    char buffer[256];
+    string content;
+    if (lang == "cpp") {
+        regex r("\\.cpp$");
+        string exec_file = regex_replace(src_file, r, "");
+        const char* s = src_file.c_str();
+        const char* e = exec_file.c_str();
+        sprintf(buffer, "%s: %s\n\tg++ -o %s %s -Wall -std=c++11", e, s, e, s);
+        content = buffer;
+    } else if (lang == "java") {
+        regex r("\\.java$");
+        string class_file = regex_replace(src_file, r, "") + ".class";
+        const char *s = src_file.c_str();
+        const char *c = class_file.c_str();
+        sprintf(buffer, "%s: %s\n\tjavac %s", c, s, s);
+        content = buffer;
+    }
+
+    if (!content.empty()) {
+        ofstream makefile("Makefile");
+        if (makefile.is_open()) {
+            makefile << content;
+            makefile.close();
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int compile_solution(string lang)
+{
+    if (SUPPORTED_LANGUAGES.find(lang) == SUPPORTED_LANGUAGES.end()) {
+        return 1;
+    }
+
+    if (lang == "cpp" || lang == "java") {
+        return system("make -s") >> 8;
+    } else {
+        return 0;
+    }
+}
+
+void help(string cmd)
+{
+    if (cmd == "tp") {
+        cout << tp_help_string << endl;
+    } else if (cmd == "init") {
+        cout << tp_init_help_string << endl;
+    } else if (cmd == "test") {
+        cout << tp_test_help_string << endl;
+    } else if (cmd == "gen") {
+        cout << tp_gen_help_string << endl;
+    } else if (cmd == "clean") {
+        cout << tp_clean_help_string << endl;
+    } else {
+        cout << "Unknown command: " << cmd << endl;
+    }
+}
+
 int init(int argc, char **argv)
 {
     if (argc < 3) {
@@ -448,14 +508,7 @@ int init(int argc, char **argv)
         return 1;
     }
 
-    bool valid = false;
-    for (string ct : SUPPORTED_LANGUAGES) {
-        if (lang == ct) {
-            valid = true;
-        }
-    }
-
-    if (!valid) {
+    if (SUPPORTED_LANGUAGES.find(lang) == SUPPORTED_LANGUAGES.end()) {
         cerr << "Unsupported language: " << lang << endl;
         return 1;
     }
@@ -498,7 +551,7 @@ int init(int argc, char **argv)
         // Download pretests
         if (contest_id != -1) {
             string id = to_s(contest_id);
-            system(("cf-parser " + id + " " + lang).c_str());
+            return system(("cf-parser " + id + " " + lang).c_str());
         }
     }
 
@@ -551,6 +604,7 @@ int test(int argc, char **argv)
             config["src_file"] = src_file;
             config["time_limit"] = time_limit;
             config["lang"] = lang;
+            generate_makefile(src_file);
         } else {
             total = atoi(config["tests"].c_str()) + 1;
             src_file = config["src_file"];
@@ -583,7 +637,7 @@ int test(int argc, char **argv)
         input_file.close();
         output_file.close();
         string command = "vim -O " + in_name + " " + out_name;
-        return system(command.c_str());
+        return system(command.c_str()) >> 8;
         //endregion
     } else if (action == "rm") {
         if (argc < 4) {
@@ -599,16 +653,17 @@ int test(int argc, char **argv)
         }
 
         status = 0;
-        string command = "rm .in_" + to_s(id) + ".txt " + ".out_" + to_s(id) + ".txt";
-        status += system(command.c_str());
+        string command = "rm .in_" + to_s(id) + ".txt " +
+                         ".out_" + to_s(id) + ".txt";
+        status += system(command.c_str()) >> 8;
         for (int i = id + 1; i <= total; i++) {
             command = "mv .in_" + to_s(i) + ".txt " +
                       "   .in_" + to_s(i - 1) + ".txt";
-            status += system(command.c_str());
+            status += system(command.c_str()) >> 8;
 
             command = "mv .out_" + to_s(i) + ".txt " +
                       "   .out_" + to_s(i - 1) + ".txt";
-            status += system(command.c_str());
+            status += system(command.c_str()) >> 8;
         }
 
         total--;
@@ -635,7 +690,7 @@ int test(int argc, char **argv)
         string in_name = ".in_" + to_s(id) + ".txt";
         string out_name = ".out_" + to_s(id) + ".txt";
         string vim = "vim -O " + in_name + " " + out_name;
-        status = system(vim.c_str());
+        status = system(vim.c_str()) >> 8;
 
         return status;
         //endregion
@@ -664,6 +719,15 @@ int test(int argc, char **argv)
         string src_file = config["src_file"];
         string lang = config["lang"];
         string time_limit = config["time_limit"];
+        cout << "Compiling solution: ... ";
+        cout.flush();
+
+        if (compile_solution(lang) == 0) {
+            cout << "OK" << endl << endl;
+        } else {
+            cerr << "FAIL" << endl << endl;
+            return 1;
+        }
 
         int total_tests = total;
         int success = 0;
@@ -720,11 +784,11 @@ int clean(int argc, char **argv)
     // clean recursively
     if (argc == 3 && strcmp(argv[2], "-r") == 0) {
         status = system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
-                             -exec rm -v {} \\;");
+                             -exec rm -v {} \\;") >> 8;
     } else {
         status = system("find -maxdepth 1\
                             -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
-                            -exec rm -v {} \\;");
+                            -exec rm -v {} \\;") >> 8;
     }
     return status;
 }
@@ -769,7 +833,7 @@ int main(int argc, char **argv)
 {
     if (argc < 2) {
         cerr << tp_usage_string << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     const char *cmd = argv[1];
@@ -778,19 +842,19 @@ int main(int argc, char **argv)
     if (starts_with(cmd, "--")) {
         if (strcmp(cmd, "--version") == 0) {
             cout << tp_version_string << endl;
-            exit(0);
+            exit(EXIT_SUCCESS);
         } else if (strcmp(cmd, "--help") == 0) {
             cout << tp_usage_string << endl << endl;
             cout << tp_help_string << endl;
-            exit(0);
+            exit(EXIT_SUCCESS);
         } else {
             unknown_option(cmd);
             cout << tp_help_string;
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
-    int status = EXIT_SUCCESS;
+    int status = 0;
     // Process commands
     if (strcmp(cmd, "help") == 0) {
         if (argc < 3) {
@@ -811,6 +875,6 @@ int main(int argc, char **argv)
         status = 1;
     }
 
-    return status;
+    return (status == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

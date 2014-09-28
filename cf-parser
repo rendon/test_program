@@ -17,11 +17,11 @@ from functools import partial, wraps
 import re
  
 # User modifiable constants:
-INPUT_FILE='.in_'
-OUTPUT_FILE='.out_'
+INPUT_FILE = '.in_'
+OUTPUT_FILE = '.out_'
 
 # Do not modify these!
-VERSION='CodeForces Parser v1.3'
+VERSION = 'CodeForces Parser v1.3'
 extensions = {'cpp': '.cpp', 'java': '.java', 'ruby': '.rb', 'python': '.py'}
 
 class CodeforcesProblemParser(HTMLParser):
