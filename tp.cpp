@@ -429,15 +429,17 @@ int generate_makefile(string src_file)
     char buffer[256];
     string content;
     if (lang == "cpp") {
-        regex r("\\.cpp$");
-        string exec_file = regex_replace(src_file, r, "");
+        //regex r("\\.cpp$"); // This doesn't work in Windows yet (--> GCC 4.9)
+        //string exec_file = regex_replace(src_file, r, "");
+        string exec_file = src_file.substr(0, src_file.length() - 4);
         const char* s = src_file.c_str();
         const char* e = exec_file.c_str();
         sprintf(buffer, "%s: %s\n\tg++ -o %s %s -Wall -std=c++11", e, s, e, s);
         content = buffer;
     } else if (lang == "java") {
-        regex r("\\.java$");
-        string class_file = regex_replace(src_file, r, "") + ".class";
+        //regex r("\\.java$");
+        //string class_file = regex_replace(src_file, r, "") + ".class";
+        string class_file = src_file.substr(0, src_file.length() - 5);
         const char *s = src_file.c_str();
         const char *c = class_file.c_str();
         sprintf(buffer, "%s: %s\n\tjavac %s", c, s, s);

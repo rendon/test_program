@@ -3,6 +3,7 @@
 .out*
 .test_info
 tp
+tp.exe
 TODO.txt
 test/*
 tags
