@@ -1,3 +1,13 @@
+/**
+ * @file
+ * @author Rafael Rendon Pablo <rafaelrendonpablo@gmail.com>
+ * @version 1.0
+ *
+ * @section Description
+ *
+ * Utility to automate tests for programming contest solutions.
+ */
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -17,6 +27,7 @@
 #include <wordexp.h>
 #include <sys/time.h>
 #include <unistd.h>
+
 using namespace std;
 const char tp_version_string[] =
     "Test Program v0.1\n"
@@ -25,7 +36,6 @@ const char tp_version_string[] =
     " <http://gnu.org/licenses/gpl.html>.\n"
     "This is free software: you are free to change and redistribute it.\n"
     "There is NO WARRANTY, to the extent permitted by law.";
-
 
 const char tp_usage_string[] =
     "usage: tp [--version] [--help] <command> [args]";
@@ -50,9 +60,6 @@ const char tp_init_help_string[] =
     "   java    =>  Java\n"
     "   rb      =>  Ruby\n"
     "   py      =>  Python";
-
-
-        
 
 const char tp_test_help_string[] =
     "tp test - Manage the test cases for a particular problem.\n\n"
@@ -123,29 +130,35 @@ const char BASIC_RUBY_TEMPLATE[] =
 
 /* ========== Utility functions ========== */
 
-/* Basic test to check if the str represents an integer. */
+/**
+ * Perform some basic tests to determine if *str* is a valid representation of
+ * an integer.
+ * 
+ * @param str The string to process.
+ */
 bool is_int(const char *str)
 {
-    int length = strlen(str);
-    if (length == 0) {
+    if (!str || str[0] == '\0') {
         return false;
     }
 
-    int i = 0;
+    int i = 0, length = strlen(str);
     if (str[0] == '+' || str[0] == '-') {
         i++;
     }
 
-    while (i < length) {
+    for ( ; i < length; i++) {
         if (!isdigit(str[i])) {
             return false;
         }
-        i++;
     }
 
     return true;
 }
 
+/**
+ * Returns the string representation of *n*.
+ */
 string to_s(int n)
 {
     char buff[15];
@@ -153,6 +166,9 @@ string to_s(int n)
     return string(buff);
 }
 
+/**
+ * Determines if *prefix* is a prefix of *str*.
+ */
 bool starts_with(const string &str, const string &prefix)
 {
     int n = str.length();
@@ -171,6 +187,9 @@ bool starts_with(const string &str, const string &prefix)
     return true;
 }
 
+/**
+ * Determines if *suffix* is a suffix of *str*.
+ */
 bool ends_with(const string &str, const string &suffix)
 {
     int n = str.length();
@@ -190,10 +209,17 @@ bool ends_with(const string &str, const string &suffix)
     return true;
 }
 
+/**
+ * Returns the programming language of a solution file based on its file name.
+ *
+ * @param file_name The name of the solution file.
+ * @return string A string code of the corresponding language, or an empty
+ *                string if the file name doesn't match any supported language.
+ */
 string get_language(string file_name)
 {
     string lang;
-    int length = file_name.length(); // Prevent files like ".ext"
+    int length = file_name.length(); // Used to prevent file names like ".ext"
     if (length > 4 && ends_with(file_name, ".cpp")) {
         lang = "cpp";
     } else if (length > 5 && ends_with(file_name, ".java")) {
@@ -207,13 +233,25 @@ string get_language(string file_name)
     return lang;
 }
 
-void unknown_option(string str)
+/**
+ * Basic loggger.
+ */
+void log(string message)
 {
-    cerr << "Unknown option: " << str << endl;
+    cerr << message << endl;
 }
 
 /* ============== The tests ============== */
 
+/**
+ * Runs individual test with ID *id*.
+ *
+ * @param id Test identifier.
+ * @param src_file Name of the solution file.
+ * @param lang Programming language of the solution.
+ * @param time_limit Maximum amount of time the solution is allowed to run.
+ * @return True if the test succeeds, false otherwise.
+ */
 bool do_test(int id, string src_file, string lang, string time_limit)
 {
     string in = ".in_" + to_s(id) + ".txt";
@@ -227,7 +265,7 @@ bool do_test(int id, string src_file, string lang, string time_limit)
     int run_exit_code = system(command.c_str());
     gettimeofday(&end, NULL);
 
-    // When the external program does not terminate normally the code passed to
+    // When the external program does not terminate normally, the code passed to
     // exit() is stored in the last 8 bits. In case of success this operation
     // doesn't have effect.
     run_exit_code >>= 8;
@@ -239,18 +277,18 @@ bool do_test(int id, string src_file, string lang, string time_limit)
 
     if (run_exit_code == RUNTIME_ERROR)  {
         cout << MAGENTA << fixed << setprecision(3) << "[" << t << "] "
-            << "Test #" + to_s(id) + ": RTE" << COLOR_OFF << endl;
+             << "Test #" + to_s(id) + ": RTE" << COLOR_OFF << endl;
         ret = false;
     } else if (run_exit_code == TIME_LIMIT_EXCEEDED) {
         cout << YELLOW << fixed << setprecision(3) << "[" << t << "] "
-            << "Test #" + to_s(id) + ": TLE" << COLOR_OFF << endl;
+             << "Test #" + to_s(id) + ": TLE" << COLOR_OFF << endl;
         ret = false;
     } else  if (run_exit_code == ACCEPTED) {
             cout << GREEN << fixed << setprecision(3) << "[" << t << "] "
-                << "Test #" + to_s(id) + ": AC" << COLOR_OFF << endl;
+                 << "Test #" + to_s(id) + ": AC" << COLOR_OFF << endl;
     } else if (run_exit_code == WRONG_ANSWER) {
         cout << RED << fixed << setprecision(3) << "[" << t << "] "
-            << "Test #" + to_s(id) + ": WA" << COLOR_OFF << endl;
+             << "Test #" + to_s(id) + ": WA" << COLOR_OFF << endl;
 
         cout << "== EXPECTED OUTPUT == " << endl;
         string cat = "cat " + ans;
@@ -262,7 +300,7 @@ bool do_test(int id, string src_file, string lang, string time_limit)
         cout << endl;
         ret = false;
     } else {
-        cout << RED << "Error..." << COLOR_OFF << endl;
+        cout << RED << "Error ..." << COLOR_OFF << endl;
         ret = false;
     }
 
@@ -271,6 +309,12 @@ bool do_test(int id, string src_file, string lang, string time_limit)
     return ret;
 }
 
+/**
+ * Displays the contents of the test case with ID *id* to the standard output.
+ *
+ * @param id Test case ID.
+ * @return Status of the operation.
+ */
 int show_test(int id)
 {
     cout << "Test #" + to_s(id) + ":" << endl;
@@ -290,6 +334,7 @@ int show_test(int id)
     }
 
     cout << "== INPUT ==" << endl;
+    // The test case can be huge, display 20 lines at most.
     int i, max_lines = 20;
     string line;
     for (i = 0; getline(input, line) && i < max_lines; i++)
@@ -310,6 +355,13 @@ int show_test(int id)
     return 0;
 }
 
+/**
+ * Loads configurations from *file_name* into *config*.
+ *
+ * @param file_name The file name to read from.
+ * @param config Key->Value map to store the configurations.
+ * @return Status of the operation.
+ */
 int read_config_file(string file_name, map<string, string> &config)
 {
     wordexp_t exp_result;
@@ -353,6 +405,13 @@ int read_config_file(string file_name, map<string, string> &config)
     return 0;
 }
 
+/**
+ * Writes configurations in *config* into file *file_name*.
+ *
+ * @param file_name File name of the comfiguration file.
+ * @param config Key->Value map.
+ * @return Status of the operation.
+ */
 int write_config_file(string file_name, map<string, string> &config)
 {
     ofstream config_file(file_name);
@@ -369,6 +428,13 @@ int write_config_file(string file_name, map<string, string> &config)
     return 0;
 }
 
+/**
+ * Generates a code template according to the programming language.
+ *
+ * @param lang The name of the programming language.
+ * @file_name The name of the file where the code template will be stored.
+ * @return Status of the operation.
+ */
 int generate_template(string lang, string file_name)
 {
     string key = "";
@@ -415,9 +481,10 @@ int generate_template(string lang, string file_name)
 
 /**
  * Generates Makefile for the corresponding language.
- * @param src_file Source code file name.
- * @param lang Programming language
- * @return Integer describing the status of the operation, success or failure.
+ *
+ * @param src_file The name of the solution file.
+ * @param lang Programming language of the solution.
+ * @return Status of the operation.
  */
 int generate_makefile(string src_file)
 {
@@ -429,7 +496,9 @@ int generate_makefile(string src_file)
     char buffer[256];
     string content;
     if (lang == "cpp") {
-        //regex r("\\.cpp$"); // This doesn't work in Windows yet (--> GCC 4.9)
+        // NOTE: regex_replace() is available as of GCC 4.9, which is not
+        //       available for Windows yet (I'm using Cygwin).
+        //regex r("\\.cpp$");
         //string exec_file = regex_replace(src_file, r, "");
         string exec_file = src_file.substr(0, src_file.length() - 4);
         const char* s = src_file.c_str();
@@ -460,6 +529,12 @@ int generate_makefile(string src_file)
     return 0;
 }
 
+/**
+ * Compiles the current solution file, if needed.
+ *
+ * @param lang Programming language of the solution.
+ * @return Status of the operation.
+ */
 int compile_solution(string lang)
 {
     if (SUPPORTED_LANGUAGES.find(lang) == SUPPORTED_LANGUAGES.end()) {
@@ -473,6 +548,9 @@ int compile_solution(string lang)
     }
 }
 
+/**
+ * Displays help info for the *cmd* command.
+ */
 void help(string cmd)
 {
     if (cmd == "tp") {
@@ -486,10 +564,16 @@ void help(string cmd)
     } else if (cmd == "clean") {
         cout << tp_clean_help_string << endl;
     } else {
-        cout << "Unknown command: " << cmd << endl;
+        log("Unknown command: " + cmd);
     }
 }
 
+/**
+ * Initializes the current directory with the necessary files to take part in
+ * a round of a particular programming contest.
+ *
+ * By the moment, the only supported platform is Codeforces.
+ */
 int init(int argc, char **argv)
 {
     if (argc < 3) {
@@ -505,7 +589,7 @@ int init(int argc, char **argv)
     }
 
     if (argc > 4) {
-        unknown_option(argv[4]);
+        log("Unknown option: " + string(argv[4]));
         help("init");
         return 1;
     }
@@ -560,6 +644,13 @@ int init(int argc, char **argv)
     return 0;
 }
 
+/**
+ * Handles the operations related to the test command.
+ *
+ * @param argc Argument counter, passed from the `main()` function.
+ * @param argv Argument values, passed from the the `main()` function.
+ * @return Status of the operation.
+ */
 int test(int argc, char **argv)
 {
     if (argc < 3) {
@@ -569,23 +660,19 @@ int test(int argc, char **argv)
     }
 
     if (argc > 4) {
-        unknown_option(argv[4]);
+        log("Unknown option: " + string(argv[4]));
         return 1;
     }
 
     string action = string(argv[2]);
     map<string, string> config;
     int status = read_config_file(TEST_INFO_FILE, config);
-    if (status != 0 && action != "add") {
-        cerr << "Couldn't open info file." << endl;
-        return 1;
-    }
 
     int total = 0;
     if (action == "add") {
         //region test add
         if (argc > 3) {
-            unknown_option(argv[3]);
+            log("Unknown option: " + string(argv[3]));
             return 1;
         }
 
@@ -642,6 +729,11 @@ int test(int argc, char **argv)
         return system(command.c_str()) >> 8;
         //endregion
     } else if (action == "rm") {
+        if (status != 0) {
+            log("Couldn't open info file.");
+            return 1;
+        }
+
         if (argc < 4) {
             cerr << "You must specify a test ID." << endl;
             return 1;
@@ -677,6 +769,11 @@ int test(int argc, char **argv)
         return status;
     } else if (action == "edit") {
         //region test edit
+        if (status != 0) {
+            log("Couldn't open info file.");
+            return 1;
+        }
+
         if (argc < 4) {
             cerr << "You must specify a test ID." << endl;
             return 1;
@@ -698,6 +795,11 @@ int test(int argc, char **argv)
         //endregion
     } else if (action == "show") {
         //region test show
+        if (status != 0) {
+            log("Couldn't open info file.");
+            return 1;
+        }
+
         total = atoi(config["tests"].c_str());
 
         status = 0;
@@ -717,6 +819,11 @@ int test(int argc, char **argv)
         //endregion
     } else if (action == "run") {
         //region test run
+        if (status != 0) {
+            log("Couldn't open info file.");
+            return 1;
+        }
+
         total = atoi(config["tests"].c_str());
         string src_file = config["src_file"];
         string lang = config["lang"];
@@ -754,11 +861,11 @@ int test(int argc, char **argv)
 
         cout << "----------------------" << endl;
         cout << "Total tests: " << total_tests << endl
-            << GREEN << "PASS: " << success;
+             << GREEN << "PASS: " << success;
 
-        if (success < total_tests)
+        if (success < total_tests) {
             cout << RED << endl << "FAIL: " << total_tests - success;
-
+        }
         cout << COLOR_OFF << endl;
 
         if (success == total_tests) {
@@ -768,18 +875,25 @@ int test(int argc, char **argv)
         }
         //endregion
     } else {
-        unknown_option(action);
+        log("Unknown action: " + action);
         return 1;
     }
 
     return 0;
 }
 
+/**
+ * Cleans up the mess generated by this program.
+ *
+ * @param argc Argument counter, passed from the `main()` function.
+ * @param argv Argument values, passed from the the `main()` function.
+ * @return Status of the operation.
+ */
 int clean(int argc, char **argv)
 {
     int status = 0;
     if (argc > 3) {
-        unknown_option(argv[3]);
+        log("Unknown option: " + string(argv[3]));
         return 1;
     }
 
@@ -792,10 +906,18 @@ int clean(int argc, char **argv)
                             -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
                             -exec rm -v {} \\;") >> 8;
     }
+
+    status += system("rm -fv Makefile");
     return status;
 }
 
 
+/**
+ * Handles the `gen` command.
+ *
+ * The gen command allows to generate a solution template based on the solution
+ * file name provided by the user.
+ */
 int gen(int argc, char **argv)
 {
     if (argc < 3) {
@@ -804,18 +926,18 @@ int gen(int argc, char **argv)
     }
 
     if (argc > 3) {
-        unknown_option(argv[3]);
+        log("Unknown option: " + string(argv[3]));
         return 1;
     }
 
-    const char *file_name = argv[2];
+    string file_name = argv[2];
     string lang = get_language(file_name);
     if (lang.empty()) {
         cerr << "Bad file name or unsupported language :(" << endl;
         return 1;
     }
 
-    int length = strlen(file_name);
+    int length = file_name.length();
     while (length > 0 && file_name[--length] != '/');
     string dir;
     for (int i = 0; i < length; i++) {
@@ -850,7 +972,7 @@ int main(int argc, char **argv)
             cout << tp_help_string << endl;
             exit(EXIT_SUCCESS);
         } else {
-            unknown_option(cmd);
+            log("Unknown command: " + string(cmd));
             cout << tp_help_string;
             exit(EXIT_FAILURE);
         }
@@ -873,7 +995,7 @@ int main(int argc, char **argv)
     } else if (strcmp(cmd, "clean") == 0) {
         status = clean(argc, argv);
     } else {
-        unknown_option(cmd);
+        log("Unknown command: " + string(cmd));
         status = 1;
     }
 
