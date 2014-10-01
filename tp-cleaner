@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ "$1" == "-r" ] # Recursive cleaning
+then
+    find -regextype posix-extended -regex '.*/\.in_.*' -exec rm -v {} \;
+    find -regextype posix-extended -regex '.*/\.out_.*' -exec rm -v {} \;
+    find -regextype posix-extended -regex '.*/\.test_info*' -exec rm -v {} \;
+    find -regextype posix-extended -regex '.*/\.test_info*' -exec rm -v {} \;
+    find -regextype posix-extended -regex '.*/*.class' -exec rm -v {} \;
+    find -regextype posix-extended -regex '.*/Makefile' -exec rm -v {} \;
+    find -executable -type f -exec bash -c "file {} | grep -v 'ASCII text' &> /dev/null && rm -v {}" \;
+else
+    find -maxdepth 1 -regextype posix-extended -regex '.*/\.in_.*' -exec rm -v {} \;
+    find -maxdepth 1 -regextype posix-extended -regex '.*/\.out_.*' -exec rm -v {} \;
+    find -maxdepth 1 -regextype posix-extended -regex '.*/\.test_info*' -exec rm -v {} \;
+    find -maxdepth 1 -regextype posix-extended -regex '.*/\.test_info*' -exec rm -v {} \;
+    find -maxdepth 1 -regextype posix-extended -regex '.*/*.class' -exec rm -v {} \;
+    find -maxdepth 1 -regextype posix-extended -regex '.*/Makefile' -exec rm -v {} \;
+    find -maxdepth 1 -executable -type f -exec bash -c "file {} | grep -v 'ASCII text' &> /dev/null && rm -v {}" \;
+fi
+
+exit 0;

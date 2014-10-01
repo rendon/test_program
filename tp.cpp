@@ -835,24 +835,17 @@ int test(int argc, char **argv)
  */
 int clean(int argc, char **argv)
 {
-    int status = 0;
     if (argc > 3) {
         log("Unknown option: " + string(argv[3]));
         return 1;
     }
 
-    // clean recursively
-    if (argc == 3 && strcmp(argv[2], "-r") == 0) {
-        status = system("find  -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
-                             -exec rm -v {} \\;") >> 8;
-    } else {
-        status = system("find -maxdepth 1\
-                            -regex '.*/\\.\\(in_\\|out_\\|test_info\\).*'\
-                            -exec rm -v {} \\;") >> 8;
+    string command = "tp-cleaner";
+    if (argc == 3 && strcmp(argv[2], "-r") == 0) { // clean recursively
+        command += " -r";
     }
 
-    status += system("rm -fv Makefile");
-    return status;
+    return system(command.c_str()) >> 8;
 }
 
 
