@@ -28,6 +28,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "stringutils.h"
+
 using namespace std;
 const char tp_version_string[] =
     "Test Program v0.1\n"
@@ -128,87 +130,6 @@ const char BASIC_RUBY_TEMPLATE[] =
 "#!/usr/bin/ruby\n"
 "puts \"Let's do it!\"\n";
 
-/* ========== Utility functions ========== */
-
-/**
- * Perform some basic tests to determine if *str* is a valid representation of
- * an integer.
- * 
- * @param str The string to process.
- */
-bool is_int(const char *str)
-{
-    if (!str || str[0] == '\0') {
-        return false;
-    }
-
-    int i = 0, length = strlen(str);
-    if (str[0] == '+' || str[0] == '-') {
-        i++;
-    }
-
-    for ( ; i < length; i++) {
-        if (!isdigit(str[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
- * Returns the string representation of *n*.
- */
-string to_s(int n)
-{
-    char buff[15];
-    sprintf(buff, "%d", n);
-    return string(buff);
-}
-
-/**
- * Determines if *prefix* is a prefix of *str*.
- */
-bool starts_with(const string &str, const string &prefix)
-{
-    int n = str.length();
-    int m = prefix.length();
-    if (m > n) {
-        return false;
-    }
-
-    while (m > 0) {
-        if (str[m-1] != prefix[m-1]) {
-            return false;
-        }
-        m--;
-    }
-
-    return true;
-}
-
-/**
- * Determines if *suffix* is a suffix of *str*.
- */
-bool ends_with(const string &str, const string &suffix)
-{
-    int n = str.length();
-    int m = suffix.length();
-    if (m > n) {
-        return false;
-    }
-
-    while (n > 0 && m > 0) {
-        if (str[n-1] != suffix[m-1]) {
-            return false;
-        }
-        n--;
-        m--;
-    }
-    
-    return true;
-}
-
 /**
  * Returns the programming language of a solution file based on its file name.
  *
@@ -219,6 +140,7 @@ bool ends_with(const string &str, const string &suffix)
 string get_language(string file_name)
 {
     string lang;
+    file_name = to_lower(file_name);
     int length = file_name.length(); // Used to prevent file names like ".ext"
     if (length > 4 && ends_with(file_name, ".cpp")) {
         lang = "cpp";
@@ -239,6 +161,14 @@ string get_language(string file_name)
 void log(string message)
 {
     cerr << message << endl;
+}
+
+void log(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
 }
 
 /* ============== The tests ============== */
@@ -488,7 +418,9 @@ int generate_template(string lang, string file_name)
  */
 int generate_makefile(string src_file)
 {
-    string lang = get_language(src_file);
+    // src_file could be of the form /path/to/the/solution.cpp
+    string file_name = base_name(src_file);
+    string lang = get_language(file_name);
     if (lang.empty()) {
         return 1;
     }
@@ -500,23 +432,32 @@ int generate_makefile(string src_file)
         //       available for Windows yet (I'm using Cygwin).
         //regex r("\\.cpp$");
         //string exec_file = regex_replace(src_file, r, "");
-        string exec_file = src_file.substr(0, src_file.length() - 4);
-        const char* s = src_file.c_str();
+        string exec_file = file_name.substr(0, file_name.length() - 4);
+        const char* s = file_name.c_str();
         const char* e = exec_file.c_str();
         sprintf(buffer, "%s: %s\n\tg++ -o %s %s -Wall -std=c++11", e, s, e, s);
         content = buffer;
     } else if (lang == "java") {
         //regex r("\\.java$");
         //string class_file = regex_replace(src_file, r, "") + ".class";
-        string class_file = src_file.substr(0, src_file.length() - 5);
-        const char *s = src_file.c_str();
+        string class_file = file_name.substr(0, file_name.length() - 5);
+        const char *s = file_name.c_str();
         const char *c = class_file.c_str();
-        sprintf(buffer, "%s: %s\n\tjavac %s", c, s, s);
+        sprintf(buffer, "%s.class: %s\n\tjavac %s", c, s, s);
         content = buffer;
     }
 
     if (!content.empty()) {
-        ofstream makefile("Makefile");
+        string fn = "Makefile";
+        string dir = dir_name(src_file);
+        if (!dir.empty()) {
+            if (system(("mkdir -p " + dir).c_str())) {
+                return 1;
+            }
+            fn = dir + "/" + fn;
+        }
+
+        ofstream makefile(fn);
         if (makefile.is_open()) {
             makefile << content;
             makefile.close();
@@ -632,6 +573,7 @@ int init(int argc, char **argv)
             }
 
             generate_template(lang, file_name);
+            generate_makefile(file_name);
         }
 
         // Download pretests
@@ -639,6 +581,8 @@ int init(int argc, char **argv)
             string id = to_s(contest_id);
             return system(("cf-parser " + id + " " + lang).c_str());
         }
+    } else {
+        log("Unsupported platform: " + contest);
     }
 
     return 0;
@@ -931,20 +875,14 @@ int gen(int argc, char **argv)
     }
 
     string file_name = argv[2];
-    string lang = get_language(file_name);
+    string lang = get_language(base_name(file_name));
     if (lang.empty()) {
         cerr << "Bad file name or unsupported language :(" << endl;
         return 1;
     }
 
-    int length = file_name.length();
-    while (length > 0 && file_name[--length] != '/');
-    string dir;
-    for (int i = 0; i < length; i++) {
-        dir += file_name[i];
-    }
-
-    if (dir != "") {
+    string dir = dir_name(file_name);
+    if (!dir.empty()) {
         if (system(("mkdir -p " + dir).c_str())) {
             return 1;
         }
