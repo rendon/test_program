@@ -911,20 +911,34 @@ int main(int argc, char **argv)
 
     int status = 0;
     // Process commands
-    if (strcmp(cmd, "help") == 0) {
-        if (argc < 3) {
-            help("tp");
+    if (strcmp(cmd, "init") == 0) {
+        if (argc > 2 && strcmp(argv[2], "--help") == 0) {
+            help("init");
+            status = 0;
         } else {
-            help(argv[2]);
+            status = init(argc, argv);
         }
-    } else if (strcmp(cmd, "init") == 0) {
-        status = init(argc, argv);
     } else if (strcmp(cmd, "test") == 0) {
-        status = test(argc, argv);
+        if (argc > 2 && strcmp(argv[2], "--help") == 0) {
+            help("test");
+            status = 0;
+        } else {
+            status = test(argc, argv);
+        }
     } else if (strcmp(cmd, "gen") == 0) {
-        status = gen(argc, argv);
+        if (argc > 2 && strcmp(argv[2], "--help") == 0) {
+            help("gen");
+            status = 0;
+        } else {
+            status = gen(argc, argv);
+        }
     } else if (strcmp(cmd, "clean") == 0) {
-        status = clean(argc, argv);
+        if (argc > 2 && strcmp(argv[2], "--help") == 0) {
+            help("clean");
+            status = 0;
+        } else {
+            status = clean(argc, argv);
+        }
     } else {
         log("Unknown command: " + string(cmd));
         status = 1;
