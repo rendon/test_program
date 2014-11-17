@@ -435,7 +435,8 @@ int generate_makefile(string src_file)
         string exec_file = file_name.substr(0, file_name.length() - 4);
         const char* s = file_name.c_str();
         const char* e = exec_file.c_str();
-        sprintf(buffer, "%s: %s\n\tg++ -o %s %s -Wall -std=c++11", e, s, e, s);
+        string flags = "-Wall -std=c++11 $(CFLAGS)";
+        sprintf(buffer, "%s: %s\n\tg++ -o %s %s %s", e, s, e, s, flags.c_str());
         content = buffer;
     } else if (lang == "java") {
         //regex r("\\.java$");

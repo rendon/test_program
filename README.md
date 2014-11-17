@@ -24,6 +24,8 @@ I've developed TestProgram for help automate test case management and the execut
 TestProgram runs in GNU/Linux but it's also possible to run it on windows using Cygwin. I haven't tested it on Mac OS but I think it should run well without major complications.
 
 #Usage
+For the impatients here you have two demos in video, the first one describes the [general use](https://www.youtube.com/watch?v=FldqcTG9zCQ) and the second shows how to use it with [Codeforces](https://www.youtube.com/watch?v=92XV1V0NjBY).
+
 TestProgram work by mean of commands and each command has actions. These are the available commands:
 
 - **init**    Setups a contest environment.
@@ -98,3 +100,6 @@ TestProgram depends on the following programs:
 If you find a bug please create an issue, or even better, fix it and create a Pull Request.
 
 All contributions are welcome!
+
+#License
+This project is under GPLv3, with exception of `cf-parser` which is an adaptation of [Codeforces Parser](https://github.com/johnathan79717/codeforces-parser), which I think is also a free software license: [http://codeforces.com/blog/entry/10416#comment-175092](http://codeforces.com/blog/entry/10416#comment-175092).
