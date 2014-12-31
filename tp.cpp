@@ -882,7 +882,9 @@ int gen(int argc, char **argv)
         }
     }
     
-    return generate_template(lang, file_name);
+    int code = generate_template(lang, file_name);
+    code += generate_makefile(file_name);
+    return code;
 }
 
 int main(int argc, char **argv)
